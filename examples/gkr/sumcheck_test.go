@@ -11,11 +11,13 @@ import (
 func TestSumcheck(t *testing.T) {
 	assert := groth16.NewAssert(t)
 
-	var f SingleFold
-	var verifierCircuit SumcheckVerfier
+	degrees := [2]int{2, 3}
+	var claim frontend.Variable
+	sumcheckVerifierCircuit := NewSumcheckVerifier(claim, degrees)
 
-	verifierCircuit.finalFold = f
+	// var sumcheckVerifierCircuit SumcheckVerifier
 
-	_, err := frontend.Compile(gurvy.BN256, &verifierCircuit)
+	_, err := frontend.Compile(gurvy.BN256, &sumcheckVerifierCircuit)
+
 	assert.NoError(err)
 }
