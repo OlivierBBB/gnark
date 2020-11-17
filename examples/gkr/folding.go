@@ -5,39 +5,36 @@ import (
 	"github.com/consensys/gurvy"
 )
 
-// FoldingCircuit contains the data of a circuit that folds a bookkeeping table
+// FoldingCircuit contains the data of a circuit that folds a bookkeeping-table depending on (q, q')
 type FoldingCircuit struct {
-	table     [1 << (2)]frontend.Variable `gnark:"table,public"`     // table of values of a function V on a cube
-	varValues [2]frontend.Variable        `gnark:"varValues,public"` // array variable values where to compute V
-	claimed   frontend.Variable           `gnark:"claimed,public"`   // claimed value of \sum_b V(b)
-}
-
-// NewFoldingCircuit generates an empty FoldingCircuit circuit
-func NewFoldingCircuit() FoldingCircuit {
-	var table [1 << (2)]frontend.Variable
-	var varValues [2]frontend.Variable
-	var claimed frontend.Variable
-	return FoldingCircuit{
-		table:     table,
-		varValues: varValues,
-		claimed:   claimed,
-	}
+	Table       [1 << (bG + bN)]frontend.Variable `gnark:"Table,public"`     // Table of values of a function V on a cube
+	Q           [bG]frontend.Variable             `gnark:"VarValues,public"` // array variable values where to compute V
+	QPrime      [bN]frontend.Variable             `gnark:"VarValues,public"` // array variable values where to compute V
+	FoldedValue frontend.Variable                 // FoldedValue = V(q, q')
 }
 
 // Define declares the circuit constraints of a single folding circuit c
 func (c *FoldingCircuit) Define(curveID gurvy.ID, cs *frontend.ConstraintSystem) error {
 
-	// compute a + r*(b-a) recursively
-	for varIndex := 0; varIndex < 2; varIndex++ {
-		j := 2 - 1 - varIndex
-		for i := 0; i < 1<<j; i++ {
-			c.table[i+1<<j] = cs.Sub(c.table[i+1<<j], c.table[i])
-			c.table[i+1<<j] = cs.Mul(c.varValues[varIndex], c.table[i+1<<j])
-			c.table[i] = cs.Add(c.table[i], c.table[i+1<<j])
+	for i, x := range c.Q {
+		J := 1 << (bG + bN - 1 - i)
+		for k := 0; k < J; k++ {
+			c.Table[k+J] = cs.Sub(c.Table[k+J], c.Table[k])
+			c.Table[k+J] = cs.Mul(x, c.Table[i+J])
+			c.Table[k] = cs.Add(c.Table[i], c.Table[i+J])
 		}
 	}
 
-	cs.AssertIsEqual(c.claimed, c.table[0])
+	for i, x := range c.QPrime {
+		J := 1 << (bN - 1 - i)
+		for k := 0; k < J; k++ {
+			c.Table[k+J] = cs.Sub(c.Table[k+J], c.Table[k])
+			c.Table[k+J] = cs.Mul(x, c.Table[i+J])
+			c.Table[k] = cs.Add(c.Table[i], c.Table[i+J])
+		}
+	}
+
+	c.FoldedValue.Assign(c.Table[0])
 
 	return nil
 }

@@ -5,39 +5,51 @@ import (
 	"github.com/consensys/gurvy"
 )
 
-// DoubleFold contains the data of a circuit that folds a bookkeeping table
-// DoubleFold occurs twice at the input level (level 0) to compute V_0(qL, q') and V_0(qR, q')
-type DoubleFold struct {
-	table     [1 << (bG + bN)]frontend.Variable // table of values of a function V on a cube
-	varValues [bN + 2*bG]frontend.Variable      // array variable values where to compute V
-	claimed   frontend.Variable                 // claimed value of V(q, q')
+// DoubleFoldingCircuit contains the data of a circuit that folds a bookkeeping Table V twice
+// to get VL := V(hL, h') and VR := V(hR, h')
+type DoubleFoldingCircuit struct {
+	Table  [1 << (bG + bN)]frontend.Variable // Table of values of a function V on a cube
+	HPrime [bN]frontend.Variable             // values of h' to substitude into V
+	HL     [bG]frontend.Variable             // values of hL to substitude into V
+	HR     [bG]frontend.Variable             // values of hR to substitude into V
+	VL     frontend.Variable                 // claimed value of V(hL, h')
+	VR     frontend.Variable                 // claimed value of V(hR, h')
 }
 
 // Define declares the circuit constraints of a single double-folding circuit c
-func (c *DoubleFold) Define(curveID gurvy.ID, cs *frontend.ConstraintSystem) error {
+func (c *DoubleFoldingCircuit) Define(curveID gurvy.ID, cs *frontend.ConstraintSystem) error {
 
-	// For simplicity we assume that at the bottom layer the variables appear in
-	// the order h', hR, hL.
+	// fold h' into Table
 	for varIndex := 0; varIndex < bN; varIndex++ {
 		for i := 0; i < 1<<(bN-1-varIndex); i++ {
-			c.table[i+1<<(bN-1-varIndex)] = cs.Sub(c.table[i+1<<(bG+bN-1)], c.table[i])
-			c.table[i+1<<(bN-1-varIndex)] = cs.Mul(c.varValues[varIndex], c.table[i+1<<(bG+bN-1-varIndex)])
-			c.table[i] = cs.Add(c.table[i], c.table[i+1<<(bG+bN-1-varIndex)])
+			c.Table[i+1<<(bN-1-varIndex)] = cs.Sub(c.Table[i+1<<(bG+bN-1)], c.Table[i])
+			c.Table[i+1<<(bN-1-varIndex)] = cs.Mul(c.HPrime[varIndex], c.Table[i+1<<(bG+bN-1-varIndex)])
+			c.Table[i] = cs.Add(c.Table[i], c.Table[i+1<<(bG+bN-1-varIndex)])
 		}
 	}
 
-	// at this point the relevant values in table are concentrated among the first 2**bG indices
+	// enough to put RightCopy = c.Table[:1<<bG] ?
+	var RightCopy [1 << bG]frontend.Variable
+	for i := 0; i < 1<<bG; i++ {
+		RightCopy[i] = c.Table[i]
+	}
+
+	// at this point the relevant values in Table are concentrated among the first 2**bG indices
 	for varIndex := 0; varIndex < bG; varIndex++ {
 		for i := 0; i < 1<<(bG-1-varIndex); i++ {
-			c.table[i+1<<(bG-1-varIndex)] = cs.Sub(c.table[i+1<<(bG+bN-1)], c.table[i])
-			c.table[i+1<<(2*bG-1-varIndex)] = cs.Mul(c.varValues[bN+bG+varIndex], c.table[i+1<<(bG+bN-1-varIndex)])
-			c.table[i+1<<(bG-1-varIndex)] = cs.Mul(c.varValues[bN+varIndex], c.table[i+1<<(bG+bN-1-varIndex)])
-			c.table[i] = cs.Add(c.table[i], c.table[i+1<<(bG+bN-1-varIndex)])
-			c.table[i] = cs.Add(c.table[i], c.table[i+1<<(bG+bN-1-varIndex)])
+			// VL computation
+			c.Table[i+1<<(bG-1-varIndex)] = cs.Sub(c.Table[i+1<<(bG-1-varIndex)], c.Table[i])
+			c.Table[i+1<<(bG-1-varIndex)] = cs.Mul(c.HL[varIndex], c.Table[i+1<<(bG-1-varIndex)])
+			c.Table[i] = cs.Add(c.Table[i], c.Table[i+1<<(bG-1-varIndex)])
+			// VR computation
+			RightCopy[i+1<<(bG-1-varIndex)] = cs.Sub(RightCopy[i+1<<(bG-1-varIndex)], RightCopy[i])
+			RightCopy[i+1<<(bG-1-varIndex)] = cs.Mul(c.HR[varIndex], RightCopy[i+1<<(bG-1-varIndex)])
+			RightCopy[i] = cs.Add(RightCopy[i], RightCopy[i+1<<(bG-1-varIndex)])
 		}
 	}
 
-	cs.AssertIsEqual(c.claimed, c.table[0])
+	cs.AssertIsEqual(c.VL, c.Table[0])
+	cs.AssertIsEqual(c.VR, RightCopy[0])
 
 	return nil
 }
