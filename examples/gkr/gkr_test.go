@@ -71,11 +71,11 @@ func TestGKRWithBGs(t *testing.T) {
 		// Solver:
 		assert.SolvingSucceeded(r1cs, &witness)
 
-		pk, vk := groth16.Setup(r1cs)
-		proof, err := groth16.Prove(r1cs, pk, witness)
-		assert.NoError(err)
-		err = groth16.Verify(proof, vk, witness)
-		assert.NoError(err)
+		// pk, vk := groth16.Setup(r1cs)
+		// proof, err := groth16.Prove(r1cs, pk, witness)
+		// assert.NoError(err)
+		// err = groth16.Verify(proof, vk, witness)
+		// assert.NoError(err)
 
 		// go test -timeout 30s -run ^TestGKRWithBGs$ github.com/consensys/gnark/examples/gkr_With_bGs
 	}
