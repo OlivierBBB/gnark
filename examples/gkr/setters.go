@@ -68,7 +68,7 @@ func (gkr *CircuitGKR) setOutputs() {
 	}
 }
 
-func (gkr *CircuitGKR) setup() {
+func (gkr *CircuitGKR) setPublicInputs() {
 	gkr.setRoundConstants()
 	gkr.setInputs()
 	gkr.setOutputs()

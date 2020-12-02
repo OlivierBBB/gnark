@@ -6,8 +6,7 @@ import (
 	"github.com/consensys/gurvy"
 )
 
-// Sumcheck contains the circuit data of a sumcheck run
-// EXCEPT WHAT IS REQUIRED FOR THE FINAL CHECK.
+// Sumcheck contains the circuit data of a sumcheck run EXCEPT WHAT IS REQUIRED FOR THE FINAL CHECK.
 type Sumcheck struct {
 	InitialClaim frontend.Variable
 	HLPoly       Polynomial     `gnark:",public"` // deg = 2 wrt hL => 3 coeffs; bG = 1 => only one poly required
@@ -51,9 +50,7 @@ func (sc *Sumcheck) Solve(curveID gurvy.ID, cs *frontend.ConstraintSystem, mimc 
 	return hL, hR, hPrime, lastClaim
 }
 
-// Combinator combines the previously computed folded values of Eq, Copy, Cipher
-// and the two foldings (VR & VL) of V_i into the evalution of the polynomial
-// being summed over.
+// Combinator combines the previously computed folded values of Eq, Copy, Cipher and foldings VR & VL.
 func Combinator(cs *frontend.ConstraintSystem, eq, copy, cipher, VL, VR, roundConstant frontend.Variable) (computedClaim frontend.Variable) {
 
 	computedClaim = cs.Add(VR, roundConstant)     // VR + C

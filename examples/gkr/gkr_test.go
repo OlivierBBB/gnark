@@ -12,17 +12,17 @@ func TestGKR(t *testing.T) {
 
 	var gkr CircuitGKR
 
-	// fix the size of gkr.HLPolynomials
+	// set size of gkr.HLPolynomials
 	for layer := range gkr.HLPolynomials {
 		gkr.HLPolynomials[layer].Coefficients = make([]frontend.Variable, degHL+1)
 	}
 
-	// fix the size of gkr.HRPolynomials
+	// set size of gkr.HRPolynomials
 	for layer := range gkr.HRPolynomials {
 		gkr.HRPolynomials[layer].Coefficients = make([]frontend.Variable, degHR+1)
 	}
 
-	// fix the size of gkr.HPrimePolynomials
+	// set size of gkr.HPrimePolynomials
 	for layer := range gkr.HPrimePolynomials {
 		for varIndex := range gkr.HPrimePolynomials[layer] {
 			gkr.HPrimePolynomials[layer][varIndex].Coefficients = make([]frontend.Variable, degHPrime+1)
@@ -54,8 +54,8 @@ func TestGKR(t *testing.T) {
 			}
 		}
 
-		// Insert all public values into the witness
-		witness.setup()
+		// Set public values
+		witness.setPublicInputs()
 
 		// Prover:
 		// assert.ProverSucceeded(r1cs, &witness)

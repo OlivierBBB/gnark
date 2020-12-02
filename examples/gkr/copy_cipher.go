@@ -7,23 +7,16 @@ import (
 // PrefoldedCopyAndCipher generates two prefolded gate BKTs
 //		prefoldedCopy(?,?)		:= Copy(Q,?,?)
 // 		prefoldedCipher(?,?)	:= Cipher(Q,?,?)
-// these BKTs contain a nonzero value only for (?,?) == (0,1) i.e. in BKT.Table[1]
+// these BKTs contain a single nonzero value for (?,?) == (1,0) i.e. in (BKT_name).Table[2]
 func PrefoldedCopyAndCipher(cs *frontend.ConstraintSystem, Q frontend.Variable) (prefoldedCopy, prefoldedCipher PrefoldedGateBKT) {
 
-	// set prefoldedCopy.Table[1]
+	// set prefoldedCopy.Table[2] and prefoldedCipher.Table[2]
 	prefoldedCopy.Table[2] = Q
-	// put zeros everywhere else
+	prefoldedCipher.Table[1] = cs.Sub(1, Q)
+	// zeros everywhere else
 	for i := 0; i < len(prefoldedCopy.Table); i++ {
 		if i != 2 {
 			prefoldedCopy.Table[i] = cs.Constant(0)
-		}
-	}
-
-	// set prefoldedCipher.Table[1]
-	prefoldedCipher.Table[1] = cs.Sub(1, Q)
-	// put zeros everywhere else
-	for i := 0; i < len(prefoldedCipher.Table); i++ {
-		if i != 2 {
 			prefoldedCipher.Table[i] = cs.Constant(0)
 		}
 	}
@@ -42,21 +35,15 @@ func PrefoldedCopyAndCipherLinComb(cs *frontend.ConstraintSystem, lambda, rho, h
 	aux := cs.Mul(rho, hR) // rho * hR
 	aux = cs.Add(hL, aux)  // hL + rho * hR
 	prefoldedCopy.Table[2] = aux
-	// zeros everywhere else
-	for i := 0; i < len(prefoldedCopy.Table); i++ {
-		if i != 2 {
-			prefoldedCopy.Table[i] = cs.Constant(0)
-		}
-	}
-
 	// cipher(a,b,c) = (1-a) * (1-b) * c
 	// prefoldedCipher.Table[2] = (1 - hL) + rho * (1 - hR) = (1 + rho) - (hL + rho * hR)
 	aux = cs.Sub(cs.Constant(1), aux) // 1 - (hL + rho * hR)
 	aux = cs.Add(aux, rho)            // (1 + rho) - (hL + rho * hR)
 	prefoldedCipher.Table[2] = aux
 	// zeros everywhere else
-	for i := 0; i < len(prefoldedCipher.Table); i++ {
+	for i := 0; i < len(prefoldedCopy.Table); i++ {
 		if i != 2 {
+			prefoldedCopy.Table[i] = cs.Constant(0)
 			prefoldedCipher.Table[i] = cs.Constant(0)
 		}
 	}

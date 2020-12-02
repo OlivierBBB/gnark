@@ -4,13 +4,12 @@ import (
 	"github.com/consensys/gnark/frontend"
 )
 
-// Polynomial encodes a polynomial in terms of its coefficients:
-// a0 + a1X + ... + ad X^d <--> {a0, a1, ... , ad}
+// Polynomial encodes a polynomial: a0 + a1X + ... + ad X^d <=> {a0, a1, ... , ad}
 type Polynomial struct {
 	Coefficients []frontend.Variable
 }
 
-// eval returns p(x) and adds the associated computational constraints to cs
+// eval returns p(x)
 func (p *Polynomial) eval(cs *frontend.ConstraintSystem, x frontend.Variable) (res frontend.Variable) {
 
 	res = cs.Constant(0)
@@ -25,7 +24,7 @@ func (p *Polynomial) eval(cs *frontend.ConstraintSystem, x frontend.Variable) (r
 	return res
 }
 
-// zeroAndOne returns P(0) + P(1)
+// zeroAndOne returns p(0) + p(1)
 func (p *Polynomial) zeroAndOne(cs *frontend.ConstraintSystem) frontend.Variable {
 
 	// coeffsInterface is required for cs.Add(a, b, coeffsInterface[1:]...) to be accepted.

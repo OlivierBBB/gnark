@@ -24,10 +24,9 @@ func (eq *Eq) MonovariateEqEval(cs *frontend.ConstraintSystem, i int) frontend.V
 // Fold returns Eq(q', h')
 func (eq *Eq) Fold(cs *frontend.ConstraintSystem) frontend.Variable {
 
-	// initialize res to 1
 	res := cs.Constant(1)
 
-	// multiply all the Eq's into res
+	// multiply all the MonovariateEqEval's into res
 	for i := range eq.QPrime {
 		res = cs.Mul(res, eq.MonovariateEqEval(cs, i))
 	}
