@@ -76,8 +76,8 @@ func (gkr *CircuitGKR) Define(curveID gurvy.ID, cs *frontend.ConstraintSystem) e
 			HPrimePolys:  gkr.HPrimePolynomials[round],
 		}
 
-		// Verify this sumcheck instance EXCEPT FOR THE FINAL VERIFICATION:
-		// ================================================================
+		// Verify the sumcheck EXCEPT FINAL VERIFICATION:
+		// ==============================================
 
 		hL, hR, hPrime, lastClaimOfThisSumcheck := sc.Solve(curveID, cs, &mimc)
 
@@ -95,7 +95,7 @@ func (gkr *CircuitGKR) Define(curveID gurvy.ID, cs *frontend.ConstraintSystem) e
 		} else {
 			VL, VR = gkr.VInput.DoubleFold(cs, hL, hR, hPrime)
 		}
-		// compute expected value of the final claim of the current Sumcheck; compare
+		// get expected value of the last claim; compare
 		expectedClaim := Combinator(cs, eq, copy, cipher, VL, VR, gkr.RoundConstants[round])
 		cs.AssertIsEqual(lastClaimOfThisSumcheck, expectedClaim)
 
