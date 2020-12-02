@@ -1,0 +1,108 @@
+package gkr
+
+import (
+	"testing"
+
+	"github.com/consensys/gnark/backend/groth16"
+	"github.com/consensys/gnark/frontend"
+	"github.com/consensys/gurvy"
+)
+
+func TestEqFold(t *testing.T) {
+	assert := groth16.NewAssert(t)
+
+	// QPrime := make([]frontend.Variable, 4)
+	// HPrime := make([]frontend.Variable, 4)
+
+	var e EqFoldingCircuit
+
+	r1cs, err := frontend.Compile(gurvy.BN256, &e)
+
+	assert.NoError(err)
+
+	{
+		var g EqFoldingCircuit
+
+		// g.QPrime = make([]frontend.Variable, 4)
+		// g.HPrime = make([]frontend.Variable, 4)
+		g.EqValue.Assign(0)
+
+		for i := 0; i < 4; i++ {
+			g.QPrime[i].Assign(i)
+			g.HPrime[i].Assign(i + 1)
+		}
+
+		assert.ProverSucceeded(r1cs, &g)
+	}
+
+	{
+		var g EqFoldingCircuit
+
+		// g.QPrime = make([]frontend.Variable, 4)
+		// g.HPrime = make([]frontend.Variable, 4)
+
+		for i := 0; i < 4; i++ {
+			g.QPrime[i].Assign(i + 1)
+			g.HPrime[i].Assign(i + 1)
+		}
+		r := 5 * 13 * 25
+		g.EqValue.Assign(r)
+
+		assert.ProverSucceeded(r1cs, &g)
+	}
+}
+
+
+func TestFolding(t *testing.T) {
+	assert := groth16.NewAssert(t)
+
+	var fc FoldingCircuit
+	r1cs, err := frontend.Compile(gurvy.BN256, &fc)
+
+	assert.NoError(err)
+
+	{
+		var g FoldingCircuit
+
+		for i := 0; i < 1<<(bG+bN); i++ {
+			g.Table[i].Assign(i)
+		}
+
+		r1 := 2487186132541724
+		r2 := 1287571234672148
+
+		g.Q.Assign(r1)
+		g.QPrime[0].Assign(r2)
+
+		assert.ProverSucceeded(r1cs, &g)
+	}
+}
+
+// evalTest is tasked with computing a polynomial evaluation P(r)
+func TestPolyEval(t *testing.T) {
+
+	assert := groth16.NewAssert(t)
+
+	var e PolyEvalCircuit
+	// we need to fix the length of e.Coefficients
+	e.Coefficients = make([]frontend.Variable, 3)
+
+	r1cs, err := frontend.Compile(gurvy.BN256, &e)
+
+	assert.NoError(err)
+
+	{
+		var p PolyEvalCircuit
+
+		p.Coefficients = make([]frontend.Variable, 3)
+		// p = X^2 + 2X + 1 = (X+1)^2
+		p.Coefficients[0].Assign(1)
+		p.Coefficients[1].Assign(2)
+		p.Coefficients[2].Assign(1)
+
+		p.X.Assign(3)
+		p.Value.Assign(16)
+
+		assert.ProverSucceeded(r1cs, &p)
+	}
+}

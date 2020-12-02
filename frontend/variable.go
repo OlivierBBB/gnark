@@ -131,6 +131,8 @@ func parseType(input interface{}, baseName string, parentVisibility backend.Visi
 					if err := parseType(value, fullName, visibility, handler); err != nil {
 						return err
 					}
+				} else {
+					println("ABBA")
 				}
 			}
 		}

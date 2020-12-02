@@ -40,6 +40,7 @@ func (cs *ConstraintSystem) Add(i1, i2 interface{}, in ...interface{}) Variable 
 			n := backend.FromInterface(t)
 
 			L = append(L, cs.Term(cs.oneVariable(), &n))
+
 		}
 	}
 	add(i1)
@@ -58,6 +59,8 @@ func (cs *ConstraintSystem) Add(i1, i2 interface{}, in ...interface{}) Variable 
 	constraint := r1c.R1C{L: L, R: R, O: O, Solver: r1c.SingleOutput}
 	cs.constraints = append(cs.constraints, constraint)
 
+	// println("Add")
+	// println(res.visibility)
 	return res
 }
 
@@ -98,6 +101,8 @@ func (cs *ConstraintSystem) Sub(i1, i2 interface{}) Variable {
 	constraint := r1c.R1C{L: L, R: R, O: O, Solver: r1c.SingleOutput}
 	cs.constraints = append(cs.constraints, constraint)
 
+	// println("Sub")
+	// println(res.visibility)
 	return res
 }
 
@@ -151,7 +156,8 @@ func (cs *ConstraintSystem) Mul(i1, i2 interface{}, in ...interface{}) Variable 
 	for i := 0; i < len(in); i++ {
 		res = mul(res, in[i])
 	}
-
+	// println("Mul")
+	// println(res.visibility)
 	return res
 }
 

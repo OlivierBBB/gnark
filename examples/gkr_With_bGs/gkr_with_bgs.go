@@ -6,23 +6,13 @@ import (
 	"github.com/consensys/gurvy"
 )
 
-const (
-	nLayers   = 91
-	bN        = 1 // 2^bN hash computations
-	bG        = 1 // base circuit breadth = 2 = 2^bG
-	degHL     = 8
-	degHR     = 2
-	degHPrime = 8
-)
-
-// FullGKRCircuit contains the circuit data for an nLayers deep GKR circuit.
-type FullGKRCircuit struct {
-	QInitial          frontend.Variable              `gnark:",public"` // initial randomness, recall bG = 1
+// FullGKRWithBGsCircuit contains the circuit data for an nLayers deep GKR circuit.
+type FullGKRWithBGsCircuit struct {
 	QPrimeInitial     [bN]frontend.Variable          `gnark:",public"` // initial randomness (of length bN)
 	VLClaimed         [nLayers - 1]frontend.Variable `gnark:",public"` // claimed values of VL for all levels except inputs and outputs
 	VRClaimed         [nLayers - 1]frontend.Variable `gnark:",public"` // claimed values of VR for all levels except inputs and outputs
-	HRPolynomials     [nLayers]Polynomial            `gnark:",public"` // polynomials for eliminating hR; deg = 2 => 3 coeffs
-	HLPolynomials     [nLayers]Polynomial            `gnark:",public"` // polynomials for eliminating hL; deg = 8 => 9 coeffs
+	HLPolynomials     [nLayers]Polynomial            `gnark:",public"` // polynomials for eliminating hL; deg = 2 => 3 coeffs
+	HRPolynomials     [nLayers]Polynomial            `gnark:",public"` // polynomials for eliminating hR; deg = 8 => 9 coeffs
 	HPrimePolynomials [nLayers][bN]Polynomial        `gnark:",public"` // polynomials for eliminating h'; deg = 8 => 9 coeffs
 	VOutput           OutputValuesBKT                `gnark:",public"` // table of outputs
 	VInput            InputValuesBKT                 `gnark:",public"` // table of inputs
@@ -30,7 +20,7 @@ type FullGKRCircuit struct {
 }
 
 // Define declares the circuit constraints of a full GKR circuit
-func (gkr *FullGKRCircuit) Define(curveID gurvy.ID, cs *frontend.ConstraintSystem) error {
+func (gkr *FullGKRWithBGsCircuit) Define(curveID gurvy.ID, cs *frontend.ConstraintSystem) error {
 
 	mimc, _ := mimc.NewMiMC("seed", curveID)
 
@@ -49,20 +39,36 @@ func (gkr *FullGKRCircuit) Define(curveID gurvy.ID, cs *frontend.ConstraintSyste
 			// get the initial claim for the first Sumcheck run
 			initialClaimOfTheSumcheck = gkr.VOutput.SingleFold(cs, gkr.QPrimeInitial)
 			qPrimeCurr = gkr.QPrimeInitial
-			prefoldedCopy, prefoldedCipher = PrefoldedCopyAndCipher(cs, gkr.QInitial)
+			var CipherTable, CopyTable [1 << (2 * bG)]frontend.Variable
+			CipherTable[0] = cs.Constant(0)
+			CipherTable[1] = cs.Constant(0)
+			CipherTable[2] = cs.Constant(1)
+			CipherTable[3] = cs.Constant(0)
+			// at the top level there is only a cipher table Cipher(hR, hL)
+			// (i.e. independent of q, of which there is none at the top level)
+			// In other words, at the top level there is no Copy table.
+			// To save time we conserve a copy table but set to zero.
+			CopyTable[0] = cs.Constant(0)
+			CopyTable[1] = cs.Constant(0)
+			CopyTable[2] = cs.Constant(0)
+			CopyTable[3] = cs.Constant(0)
+			prefoldedCopy = PrefoldedGateBKT{CopyTable}
+			prefoldedCipher = PrefoldedGateBKT{CipherTable}
 		}
 
 		// constitute current sumcheck instance
 		sc := Sumcheck{
 			InitialClaim: initialClaimOfTheSumcheck,
-			HRPoly:       gkr.HRPolynomials[round],
 			HLPoly:       gkr.HLPolynomials[round],
+			HRPoly:       gkr.HRPolynomials[round],
 			HPrimePolys:  gkr.HPrimePolynomials[round],
 		}
 
-		hR, hL, hPrime, lastClaimOfThisSumcheck := sc.Solve(curveID, cs, &mimc)
+		hL, hR, hPrime, lastClaimOfThisSumcheck := sc.Solve(curveID, cs, &mimc)
 
-		// get eq(q', h'), prefoldedCopy(hR, hL) and prefoldedCipher(hR, hL)
+		cs.Println("lastClaimOfThisSumcheck:", lastClaimOfThisSumcheck)
+
+		// get eq(q', h'), prefoldedCopy(hL, hR) and prefoldedCipher(hL, hR)
 		Eq := Eq{QPrime: qPrimeCurr, HPrime: hPrime}
 		eq = Eq.Fold(cs)
 		copy = prefoldedCopy.Fold(cs, hL, hR)
@@ -83,8 +89,9 @@ func (gkr *FullGKRCircuit) Define(curveID gurvy.ID, cs *frontend.ConstraintSyste
 		cs.AssertIsEqual(lastClaimOfThisSumcheck, expectedClaim)
 
 		// get lambda and rho
-		lambda = mimc.Hash(cs, VL)
-		rho = mimc.Hash(cs, VR)
+		lambda = cs.Constant(1)
+		rho = mimc.Hash(cs, VL, VR)
+		cs.Println("rho:", rho)
 
 		// Preparing the next round:
 		// =========================
@@ -101,6 +108,7 @@ func (gkr *FullGKRCircuit) Define(curveID gurvy.ID, cs *frontend.ConstraintSyste
 
 		// redefine qPrimeCurr as the previously computed HPrime
 		qPrimeCurr = hPrime
+		cs.Println("######### End of round", round+1, "\n")
 	}
 
 	return nil

@@ -18,6 +18,7 @@ package mimc
 
 import (
 	"errors"
+	// "fmt"
 	"math/big"
 
 	"github.com/consensys/gnark/frontend"
@@ -48,8 +49,10 @@ func (h MiMC) Hash(cs *frontend.ConstraintSystem, data ...frontend.Variable) fro
 	digest = cs.Constant(0)
 
 	for _, stream := range data {
-		digest = encryptFuncs[h.id](cs, h, stream, digest)
+		oldDigest := digest
+		digest = encryptFuncs[h.id](cs, h, digest, stream)
 		digest = cs.Add(digest, stream)
+		digest = cs.Add(digest, oldDigest)
 	}
 
 	return digest

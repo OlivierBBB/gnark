@@ -98,7 +98,7 @@ func encryptBN256(cs *frontend.ConstraintSystem, h MiMC, message, key frontend.V
 		res = cs.Mul(res, res)
 		res = cs.Mul(res, tmp)
 	}
-	res = cs.Add(res, key)
+	// res = cs.Add(res, key)
 	return res
 
 }

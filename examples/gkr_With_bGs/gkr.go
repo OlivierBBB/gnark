@@ -8,10 +8,10 @@ import (
 
 const (
 	nLayers   = 91
-	bN        = 1 // 2^bN hash computations
+	bN        = 3 // 2^bN hash computations
 	bG        = 1 // base circuit breadth = 2 = 2^bG
-	degHL     = 8
-	degHR     = 2
+	degHL     = 2
+	degHR     = 8
 	degHPrime = 8
 )
 
@@ -21,8 +21,8 @@ type FullGKRCircuit struct {
 	QPrimeInitial     [bN]frontend.Variable          `gnark:",public"` // initial randomness (of length bN)
 	VLClaimed         [nLayers - 1]frontend.Variable `gnark:",public"` // claimed values of VL for all levels except inputs and outputs
 	VRClaimed         [nLayers - 1]frontend.Variable `gnark:",public"` // claimed values of VR for all levels except inputs and outputs
-	HRPolynomials     [nLayers]Polynomial            `gnark:",public"` // polynomials for eliminating hR; deg = 2 => 3 coeffs
-	HLPolynomials     [nLayers]Polynomial            `gnark:",public"` // polynomials for eliminating hL; deg = 8 => 9 coeffs
+	HLPolynomials     [nLayers]Polynomial            `gnark:",public"` // polynomials for eliminating hL; deg = 2 => 3 coeffs
+	HRPolynomials     [nLayers]Polynomial            `gnark:",public"` // polynomials for eliminating hR; deg = 8 => 9 coeffs
 	HPrimePolynomials [nLayers][bN]Polynomial        `gnark:",public"` // polynomials for eliminating h'; deg = 8 => 9 coeffs
 	VOutput           OutputValuesBKT                `gnark:",public"` // table of outputs
 	VInput            InputValuesBKT                 `gnark:",public"` // table of inputs
@@ -55,25 +55,25 @@ func (gkr *FullGKRCircuit) Define(curveID gurvy.ID, cs *frontend.ConstraintSyste
 		// constitute current sumcheck instance
 		sc := Sumcheck{
 			InitialClaim: initialClaimOfTheSumcheck,
-			HRPoly:       gkr.HRPolynomials[round],
 			HLPoly:       gkr.HLPolynomials[round],
+			HRPoly:       gkr.HRPolynomials[round],
 			HPrimePolys:  gkr.HPrimePolynomials[round],
 		}
 
-		hR, hL, hPrime, lastClaimOfThisSumcheck := sc.Solve(curveID, cs, &mimc)
+		hL, hR, hPrime, lastClaimOfThisSumcheck := sc.Solve(curveID, cs, &mimc)
 
-		// get eq(q', h'), prefoldedCopy(hR, hL) and prefoldedCipher(hR, hL)
+		// get eq(q', h'), prefoldedCopy(hL, hR) and prefoldedCipher(hL, hR)
 		Eq := Eq{QPrime: qPrimeCurr, HPrime: hPrime}
 		eq = Eq.Fold(cs)
-		copy = prefoldedCopy.Fold(cs, hL, hR)
-		cipher = prefoldedCipher.Fold(cs, hL, hR)
+		copy = prefoldedCopy.Fold(cs, hR, hL)
+		cipher = prefoldedCipher.Fold(cs, hR, hL)
 
 		// get VL and VR
 		if round != (nLayers - 1) {
 			VL = gkr.VLClaimed[round]
 			VR = gkr.VRClaimed[round]
 		} else {
-			VL, VR = gkr.VInput.DoubleFold(cs, hL, hR, hPrime)
+			VL, VR = gkr.VInput.DoubleFold(cs, hR, hL, hPrime)
 		}
 
 		// compute expected value of the final claim of the current Sumcheck run
@@ -91,7 +91,7 @@ func (gkr *FullGKRCircuit) Define(curveID gurvy.ID, cs *frontend.ConstraintSyste
 
 		// set the next prefoldedCopy and prefoldedCipher
 		if round != (nLayers - 1) {
-			prefoldedCopy, prefoldedCipher = PrefoldedCopyAndCipherLinComb(cs, lambda, rho, hL, hR)
+			prefoldedCopy, prefoldedCipher = PrefoldedCopyAndCipherLinComb(cs, lambda, rho, hR, hL)
 		}
 
 		// The next initial claim is lambda * VL + rho * VR

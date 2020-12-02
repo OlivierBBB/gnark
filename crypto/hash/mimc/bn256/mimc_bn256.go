@@ -17,6 +17,7 @@
 package bn256
 
 import (
+	// "fmt"
 	"hash"
 	"math/big"
 
@@ -45,6 +46,7 @@ func NewParams(seed string) Params {
 		rnd = sha3.Sum256(value.Bytes())
 		value.SetBytes(rnd[:])
 		res[i].SetBigInt(value)
+		// fmt.Printf("\"%v\",\n", value.String())
 	}
 
 	return res

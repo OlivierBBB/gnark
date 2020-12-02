@@ -6,85 +6,66 @@ import (
 	"github.com/consensys/gurvy"
 )
 
-// SumcheckCircuit contains the circuit data for the verification of intermediate sumcheck runs.
-type SumcheckCircuit struct {
-	InitialClaim         frontend.Variable       `gnark:"c,public"` // initial InitialClaim
-	HRPoly               []frontend.Variable     // degree = 2 wrt hR -> 3 coefficients; also bG = 1 so only one poly required
-	HLPoly               []frontend.Variable     // degree = 8 wrt hL -> 9 coefficients; also bG = 1 so only one poly required
-	HPrimePolys          [bN][]frontend.Variable // degree = 8 wrt h' -> 9 coefficients; bN polynomials required
-	VRClaimed            frontend.Variable       // for the final verification
-	VLClaimed            frontend.Variable       // for the final verification
-	Alpha                frontend.Variable       // for the next round
-	Beta                 frontend.Variable       // for the next round
-	CopyTablePrefolded   [1 << (2 * bG)]frontend.Variable
-	CipherTablePrefolded [1 << (2 * bG)]frontend.Variable
-	QPrimeCurr           []frontend.Variable // to compute Eq(QPrimeCurr, QPrimeNext); of size bN
-	QRNext               frontend.Variable
-	QLNext               frontend.Variable
-	QPrimeNext           []frontend.Variable // of size bN
+// Sumcheck contains the circuit data of a sumcheck run
+// EXCEPT WHAT IS REQUIRED FOR THE FINAL CHECK.
+type Sumcheck struct {
+	InitialClaim frontend.Variable
+	HRPoly       Polynomial     `gnark:",public"` // deg = 2 wrt hR => 3 coeffs; bG = 1 => only one poly required
+	HLPoly       Polynomial     `gnark:",public"` // deg = 8 wrt hL => 9 coeffs; bG = 1 => only one poly required
+	HPrimePolys  [bN]Polynomial `gnark:",public"` // deg = 8 wrt h' => 9 coeffs; bN polys required
 }
 
-// Define contains the circuit data for an NRounds long sumcheck verfier
-func (c *SumcheckCircuit) Define(curveID gurvy.ID, cs *frontend.ConstraintSystem, FinalSumcheckRun bool) error {
-
-	mimc, _ := mimc.NewMiMC("seed", curveID)
-
-	var r, eval frontend.Variable
-	r.Assign(0)
-	eval.Assign(0)
-
-	// Get current claim
-	claimCurr := c.InitialClaim
+// Solve verifies a sumcheck instance EXCEPT FOR THE FINAL VERIFICATION.
+func (sc *Sumcheck) Solve(curveID gurvy.ID, cs *frontend.ConstraintSystem, mimc *mimc.MiMC) (
+	hR, hL frontend.Variable,
+	hPrime [bN]frontend.Variable,
+	lastClaim frontend.Variable,
+) {
+	// initialize current claim:
+	claimCurr := sc.InitialClaim
 
 	// Elimination of hR:
-	eval = cs.Add(c.HRPoly[0], c.HRPoly[0], c.HRPoly[1:]) // eval = P_0(0) + P_0(1)
-	cs.AssertIsEqual(eval, claimCurr)                     // claim == eval
-	r = mimc.Hash(cs, c.HRPoly...)                        // Hash the polynomial
-	c.QRNext.Assign(r)                                    // get qR for the next Sumcheck protocol
-
-	// Get current claim
-	p := PolyEvalCircuit{X: r, Coefficients: c.HRPoly}
-	p.Define(curveID, cs) // compute p(r)
-	claimCurr = p.Value   // set it as current claim
+	zeroAndOne := sc.HRPoly.zeroAndOne(cs)
+	cs.AssertIsEqual(zeroAndOne, claimCurr)       // claim == P_r(0) + P_r(1)
+	hR = mimc.Hash(cs, sc.HRPoly.Coefficients...) // Hash the polynomial
+	claimCurr = sc.HRPoly.eval(cs, hR)            // Get new current claim
 
 	// Elimination of hL:
-	eval = cs.Add(c.HLPoly[0], c.HLPoly[0], c.HLPoly[1:]) // eval = P_1(0) + P_1(1)
-	cs.AssertIsEqual(eval, claimCurr)                     // claim == eval
-	r = mimc.Hash(cs, c.HLPoly...)                        // Hash the polynomial
-	c.QLNext.Assign(r)                                    // get qL for the next Sumcheck protocol
+	zeroAndOne = sc.HLPoly.zeroAndOne(cs)
+	cs.AssertIsEqual(zeroAndOne, claimCurr)       // claim == P_l(0) + P_l(1)
+	hL = mimc.Hash(cs, sc.HLPoly.Coefficients...) // Hash the polynomial
+	claimCurr = sc.HLPoly.eval(cs, hL)            // Get new current claim
 
-	// Get current claim
-	p = PolyEvalCircuit{X: r, Coefficients: c.HRPoly}
-	p.Define(curveID, cs) // compute p(r)
-	claimCurr = p.Value   // set it as current claim
-
+	// elimination of the variables in h':
 	for round := 0; round < bN; round++ {
 
 		// elimination of h'_round:
-		eval = cs.Add(c.HPrimePolys[round][0], c.HPrimePolys[round][0], c.HPrimePolys[round][1:])
-		cs.AssertIsEqual(eval, claimCurr)
-		r = mimc.Hash(cs, c.HPrimePolys[round]...)
-		c.QPrimeNext[round] = r
-
-		// Get current claim
-		p = PolyEvalCircuit{X: r, Coefficients: c.HPrimePolys[round]}
-		p.Define(curveID, cs)
-		claimCurr = p.Value
+		zeroAndOne = sc.HPrimePolys[round].zeroAndOne(cs)
+		cs.AssertIsEqual(zeroAndOne, claimCurr)                              // claim == P_l(0) + P_l(1)
+		hPrime[round] = mimc.Hash(cs, sc.HPrimePolys[round].Coefficients...) // Hash the polynomial
+		claimCurr = sc.HPrimePolys[round].eval(cs, hPrime[round])            // Get new current claim
 	}
 
-	eq := EqFoldingCircuit{QPrime: c.QPrimeCurr, HPrime: c.QPrimeNext}
-	eq.Define(curveID, cs) // compute Eq(q', h')
+	lastClaim = claimCurr
 
-	if !FinalSumcheckRun {
-		value := eq.EqValue
-		// compute this shit
-		cs.AssertIsEqual(claimCurr, eq.EqValue)
-	} else {
+	return hR, hL, hPrime, lastClaim
+}
 
-	}
-	// at this point: currInitialClaim = P(r_1, r_2, ... , r_N)
-	c.FinalFold.InitialClaimed = currInitialClaim
-	c.FinalFold.Define(curveID, cs)
+// Combinator combines the previously computed folded values of Eq, Copy, Cipher
+// and the two foldings (VL & VR) of V_i into the evalution of the polynomial being summed over.
+func Combinator(cs *frontend.ConstraintSystem, eq, copy, cipher, VL, VR, roundConstant frontend.Variable) (computedClaim frontend.Variable) {
 
-	return nil
+	// compute eq * [ copy * VL + cipher * (VR + (VL+C)^7) ]
+	computedClaim = cs.Add(VL, roundConstant)     // VL + C
+	aux := cs.Mul(computedClaim, computedClaim)   // (VL + C)^2
+	computedClaim = cs.Mul(computedClaim, aux)    // (VL + C)^3
+	aux = cs.Mul(computedClaim, computedClaim)    // (VL + C)^4
+	computedClaim = cs.Mul(computedClaim, aux)    // (VL + C)^7
+	computedClaim = cs.Add(computedClaim, VR)     // VR + (VL + C)^7
+	computedClaim = cs.Mul(computedClaim, cipher) // cipher * (VR + (VL+C)^7)
+	aux = cs.Mul(copy, VL)                        // copy * VL
+	computedClaim = cs.Add(computedClaim, aux)    // [ copy * VL + cipher * (VR + (VL+C)^7) ]
+	computedClaim = cs.Mul(computedClaim, eq)     // eq * [ copy * VL + cipher * (VR + (VL+C)^7) ]
+
+	return computedClaim
 }

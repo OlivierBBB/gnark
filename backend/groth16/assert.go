@@ -60,9 +60,10 @@ func (assert *Assert) ProverFailed(r1cs r1cs.R1CS, solution interface{}) {
 //
 // ensure result vectors a*b=c, and check other properties like random sampling
 func (assert *Assert) ProverSucceeded(r1cs r1cs.R1CS, solution interface{}) {
-	_solution := assert.parseSolution(solution)
 
+	_solution := assert.parseSolution(solution)
 	// setup
+
 	pk, vk := Setup(r1cs)
 
 	// ensure random sampling; calling setup twice should produce != pk and vk
@@ -112,6 +113,7 @@ func (assert *Assert) SolvingFailed(r1cs r1cs.R1CS, solution interface{}) {
 }
 
 func (assert *Assert) parseSolution(solution interface{}) map[string]interface{} {
+
 	_solution, err := frontend.ParseWitness(solution)
 	assert.NoError(err)
 	return _solution
