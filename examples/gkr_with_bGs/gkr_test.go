@@ -64,8 +64,6 @@ func TestGKRWithBGs(t *testing.T) {
 		witness.setPolynomials()
 		witness.setQPrimeInitial()
 
-		// premier hash: 14596316904690824680289447726830409556807701064825759139913524429557892625
-
 		// Prover:
 		// assert.ProverSucceeded(r1cs, &witness)
 		// assert.ProverFailed(r1cs, &witness)
