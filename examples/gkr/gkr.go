@@ -6,8 +6,17 @@ import (
 	"github.com/consensys/gurvy"
 )
 
-// FullGKRWithBGsCircuit contains the circuit data for an nLayers deep GKR circuit.
-type FullGKRWithBGsCircuit struct {
+const (
+	bN        = 3
+	bG        = 1
+	nLayers   = 91
+	degHL     = 2
+	degHR     = 8
+	degHPrime = 8
+)
+
+// CircuitGKR contains the circuit data for an nLayers deep GKR circuit.
+type CircuitGKR struct {
 	QPrimeInitial     [bN]frontend.Variable          `gnark:",public"` // initial randomness (of length bN)
 	VLClaimed         [nLayers - 1]frontend.Variable `gnark:",public"` // claimed values of VL for all levels except inputs and outputs
 	VRClaimed         [nLayers - 1]frontend.Variable `gnark:",public"` // claimed values of VR for all levels except inputs and outputs
@@ -20,7 +29,7 @@ type FullGKRWithBGsCircuit struct {
 }
 
 // Define declares the circuit constraints of a full GKR circuit
-func (gkr *FullGKRWithBGsCircuit) Define(curveID gurvy.ID, cs *frontend.ConstraintSystem) error {
+func (gkr *CircuitGKR) Define(curveID gurvy.ID, cs *frontend.ConstraintSystem) error {
 
 	mimc, _ := mimc.NewMiMC("seed", curveID)
 
@@ -45,8 +54,7 @@ func (gkr *FullGKRWithBGsCircuit) Define(curveID gurvy.ID, cs *frontend.Constrai
 			CipherTable[2] = cs.Constant(1)
 			CipherTable[3] = cs.Constant(0)
 			// at the top level there is only a cipher table Cipher(hR, hL)
-			// (i.e. independent of q, of which there is none at the top level)
-			// In other words, at the top level there is no Copy table.
+			// (no q!) and no Copy table.
 			// To save time we conserve a copy table but set to zero.
 			CopyTable[0] = cs.Constant(0)
 			CopyTable[1] = cs.Constant(0)
@@ -65,8 +73,6 @@ func (gkr *FullGKRWithBGsCircuit) Define(curveID gurvy.ID, cs *frontend.Constrai
 		}
 
 		hL, hR, hPrime, lastClaimOfThisSumcheck := sc.Solve(curveID, cs, &mimc)
-
-		cs.Println("lastClaimOfThisSumcheck:", lastClaimOfThisSumcheck)
 
 		// get eq(q', h'), prefoldedCopy(hL, hR) and prefoldedCipher(hL, hR)
 		Eq := Eq{QPrime: qPrimeCurr, HPrime: hPrime}
@@ -108,7 +114,6 @@ func (gkr *FullGKRWithBGsCircuit) Define(curveID gurvy.ID, cs *frontend.Constrai
 
 		// redefine qPrimeCurr as the previously computed HPrime
 		qPrimeCurr = hPrime
-		cs.Println("######### End of round", round+1, "\n")
 	}
 
 	return nil

@@ -8,27 +8,24 @@ import (
 	"github.com/consensys/gurvy"
 )
 
-func TestGKRWithBGs(t *testing.T) {
+func TestGKR(t *testing.T) {
 
-	var gkr FullGKRWithBGsCircuit
+	var gkr CircuitGKR
 
-	// fix size of gkr.HLPolynomials
-	for i := range gkr.HLPolynomials {
-		// hL has degree 2
-		gkr.HLPolynomials[i].Coefficients = make([]frontend.Variable, degHL+1)
+	// fix the size of gkr.HLPolynomials
+	for layer := range gkr.HLPolynomials {
+		gkr.HLPolynomials[layer].Coefficients = make([]frontend.Variable, degHL+1)
 	}
 
-	// fix size of gkr.HRPolynomials
-	for i := range gkr.HRPolynomials {
-		// hR has degree 8
-		gkr.HRPolynomials[i].Coefficients = make([]frontend.Variable, degHR+1)
+	// fix the size of gkr.HRPolynomials
+	for layer := range gkr.HRPolynomials {
+		gkr.HRPolynomials[layer].Coefficients = make([]frontend.Variable, degHR+1)
 	}
 
-	// fix size of gkr.HPrimePolynomials
-	for l := range gkr.HPrimePolynomials {
-		for i := range gkr.HPrimePolynomials[l] {
-			// h' has degree 8
-			gkr.HPrimePolynomials[l][i].Coefficients = make([]frontend.Variable, degHPrime+1)
+	// fix the size of gkr.HPrimePolynomials
+	for layer := range gkr.HPrimePolynomials {
+		for varIndex := range gkr.HPrimePolynomials[layer] {
+			gkr.HPrimePolynomials[layer][varIndex].Coefficients = make([]frontend.Variable, degHPrime+1)
 		}
 	}
 
@@ -38,31 +35,27 @@ func TestGKRWithBGs(t *testing.T) {
 	assert.NoError(err)
 
 	{
-		var witness FullGKRWithBGsCircuit
+		var witness CircuitGKR
 
-		// fix size of witness.HLPolynomials and initialize values
+		// fix the size of witness.HLPolynomials and initialize values
 		for l := range witness.HLPolynomials {
 			witness.HLPolynomials[l].Coefficients = make([]frontend.Variable, degHL+1)
 		}
 
-		// fix size of witness.HRPolynomials and initialize values
+		// fix the size of witness.HRPolynomials and initialize values
 		for l := range witness.HRPolynomials {
 			witness.HRPolynomials[l].Coefficients = make([]frontend.Variable, degHR+1)
 		}
 
-		// fix size of witness.HPrimePolynomials and initialize values
+		// fix the size of witness.HPrimePolynomials and initialize values
 		for r := range witness.HPrimePolynomials {
 			for l := range witness.HPrimePolynomials[r] {
 				witness.HPrimePolynomials[r][l].Coefficients = make([]frontend.Variable, degHPrime+1)
 			}
 		}
 
-		witness.setRoundConstants()
-		witness.setInputs()
-		witness.setOutputs()
-		witness.setVLAndVR()
-		witness.setPolynomials()
-		witness.setQPrimeInitial()
+		// Insert all public values into the witness
+		witness.setup()
 
 		// Prover:
 		// assert.ProverSucceeded(r1cs, &witness)

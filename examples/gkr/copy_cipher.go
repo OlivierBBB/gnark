@@ -41,8 +41,8 @@ func PrefoldedCopyAndCipherLinComb(cs *frontend.ConstraintSystem, lambda, rho, h
 	// copy(a,b,c) = a * (1-b) * c
 	// prefoldedCopy.Table[01] = lambda * hL + rho * hR
 
-	cs.Println("hL:", hL)
-	cs.Println("hR:", hR)
+	// cs.Println("hL:", hL)
+	// cs.Println("hR:", hR)
 	aux1 := cs.Mul(lambda, hL)                  // lambda * hL
 	aux2 := cs.Mul(rho, hR)                     // rho * hR
 	prefoldedCopy.Table[2] = cs.Add(aux1, aux2) // lambda * hL + rho * hR

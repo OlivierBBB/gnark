@@ -1,7 +1,7 @@
 package gkr
 
 // SetRoundConstants sets the round constants of MiMC.
-func (gkr *FullGKRWithBGsCircuit) setRoundConstants() {
+func (gkr *CircuitGKR) setRoundConstants() {
 
 	for i := range gkr.RoundConstants {
 		gkr.RoundConstants[nLayers-1-i].Assign(arks[i])
@@ -9,7 +9,7 @@ func (gkr *FullGKRWithBGsCircuit) setRoundConstants() {
 }
 
 // SetVLAndVR sets the values of VL and VR for the final check of the intermediate sumchecks
-func (gkr *FullGKRWithBGsCircuit) setVLAndVR() {
+func (gkr *CircuitGKR) setVLAndVR() {
 
 	for i := range gkr.VLClaimed {
 		gkr.VLClaimed[i].Assign(claimedVLs[nLayers-1-i])
@@ -21,7 +21,7 @@ func (gkr *FullGKRWithBGsCircuit) setVLAndVR() {
 }
 
 // setQInitial sets QPrimeInitial for the first round of the first sumcheck
-func (gkr *FullGKRWithBGsCircuit) setQPrimeInitial() {
+func (gkr *CircuitGKR) setQPrimeInitial() {
 
 	for i := range gkr.QPrimeInitial {
 		gkr.QPrimeInitial[i].Assign(initialQPrime[i])
@@ -29,7 +29,7 @@ func (gkr *FullGKRWithBGsCircuit) setQPrimeInitial() {
 }
 
 // setPolynomials sets the polynomials of the sumchecks
-func (gkr *FullGKRWithBGsCircuit) setPolynomials() {
+func (gkr *CircuitGKR) setPolynomials() {
 
 	for layer := range sumcheckProofs {
 		// filling in HLPoly of layer: degHL+1 coefficients
@@ -53,7 +53,7 @@ func (gkr *FullGKRWithBGsCircuit) setPolynomials() {
 
 // setInputs sets the inputs of the gkr
 // we are currently hashing [0, 0, 0, 0, 0, 0, 0, 0]
-func (gkr *FullGKRWithBGsCircuit) setInputs() {
+func (gkr *CircuitGKR) setInputs() {
 
 	for i := range gkr.VInput.Table {
 		gkr.VInput.Table[i].Assign(0)
@@ -61,9 +61,18 @@ func (gkr *FullGKRWithBGsCircuit) setInputs() {
 }
 
 // setOutputs sets the outputs of the gkr
-func (gkr *FullGKRWithBGsCircuit) setOutputs() {
+func (gkr *CircuitGKR) setOutputs() {
 
 	for i := range gkr.VOutput.Table {
 		gkr.VOutput.Table[i].Assign(outputs[i])
 	}
+}
+
+func (gkr *CircuitGKR) setup() {
+	gkr.setRoundConstants()
+	gkr.setInputs()
+	gkr.setOutputs()
+	gkr.setVLAndVR()
+	gkr.setPolynomials()
+	gkr.setQPrimeInitial()
 }
