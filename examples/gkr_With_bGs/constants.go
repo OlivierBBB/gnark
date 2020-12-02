@@ -1,5 +1,7 @@
 package gkr
 
+// test vector for bN = 3
+
 var initialQPrime []string
 var arks []string
 var outputs []string
