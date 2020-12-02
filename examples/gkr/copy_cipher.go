@@ -25,10 +25,10 @@ func PrefoldedCopyAndCipher(cs *frontend.ConstraintSystem, Q frontend.Variable) 
 }
 
 // PrefoldedCopyAndCipherLinComb generates two linear combinations of prefolded gate BKTs
-//		prefoldedCopy(?,?) := lambda * Copy(hL,?,?) + rho * Copy(hR,?,?)
-//		prefoldedCipher(?,?) := lambda * Cipher(hL,?,?) + rho * Cipher(hR,?,?)
+//		prefoldedCopy(?,?) := Copy(hL,?,?) + rho * Copy(hR,?,?)
+//		prefoldedCipher(?,?) := Cipher(hL,?,?) + rho * Cipher(hR,?,?)
 // these BKTs contain a single nonzero value for (?,?) == (1,0) i.e. in (BKT_name).Table[2]
-func PrefoldedCopyAndCipherLinComb(cs *frontend.ConstraintSystem, lambda, rho, hL, hR frontend.Variable) (prefoldedCopy, prefoldedCipher PrefoldedGateBKT) {
+func PrefoldedCopyAndCipherLinComb(cs *frontend.ConstraintSystem, rho, hL, hR frontend.Variable) (prefoldedCopy, prefoldedCipher PrefoldedGateBKT) {
 
 	// copy(a,b,c) = a * (1-b) * c
 	// prefoldedCopy.Table[2] = hL + rho * hR

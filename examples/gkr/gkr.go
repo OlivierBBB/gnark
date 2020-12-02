@@ -37,34 +37,38 @@ func (gkr *CircuitGKR) Define(curveID gurvy.ID, cs *frontend.ConstraintSystem) e
 		initialClaimOfTheSumcheck      frontend.Variable
 		qPrimeCurr                     [bN]frontend.Variable
 		VL, VR                         frontend.Variable
-		lambda, rho                    frontend.Variable
+		rho                            frontend.Variable
 		eq, copy, cipher               frontend.Variable
 		prefoldedCopy, prefoldedCipher PrefoldedGateBKT
 	)
 
 	for round := 0; round < nLayers; round++ {
 
+		// Set up current sumcheck:
+		// ========================
+
 		if round == 0 {
 			// get the initial claim for the first Sumcheck run
 			initialClaimOfTheSumcheck = gkr.VOutput.SingleFold(cs, gkr.QPrimeInitial)
 			qPrimeCurr = gkr.QPrimeInitial
-			var CipherTable, CopyTable [1 << (2 * bG)]frontend.Variable
-			CipherTable[0] = cs.Constant(0)
-			CipherTable[1] = cs.Constant(0)
+			var CipherTable, DummyCopyTable [1 << (2 * bG)]frontend.Variable
+			// CipherTable = [0, 0, 1, 0]
 			CipherTable[2] = cs.Constant(1)
-			CipherTable[3] = cs.Constant(0)
-			// at the top level there is only a cipher table Cipher(hR, hL)
-			// (no q!) and no Copy table.
-			// To save time we conserve a copy table but set to zero.
-			CopyTable[0] = cs.Constant(0)
-			CopyTable[1] = cs.Constant(0)
-			CopyTable[2] = cs.Constant(0)
-			CopyTable[3] = cs.Constant(0)
-			prefoldedCopy = PrefoldedGateBKT{CopyTable}
+			for i := range DummyCopyTable {
+				if i != 2 {
+					CipherTable[i] = cs.Constant(0)
+				}
+			}
+			// there is no cipher table at the top level (and no q!)
+			// for simplicity's sake we use a dummy "copy" table set to zero
+			for i := range DummyCopyTable {
+				DummyCopyTable[i] = cs.Constant(0)
+			}
+			prefoldedCopy = PrefoldedGateBKT{DummyCopyTable}
 			prefoldedCipher = PrefoldedGateBKT{CipherTable}
 		}
 
-		// constitute current sumcheck instance
+		// assemble current sumcheck instance
 		sc := Sumcheck{
 			InitialClaim: initialClaimOfTheSumcheck,
 			HLPoly:       gkr.HLPolynomials[round],
@@ -72,48 +76,42 @@ func (gkr *CircuitGKR) Define(curveID gurvy.ID, cs *frontend.ConstraintSystem) e
 			HPrimePolys:  gkr.HPrimePolynomials[round],
 		}
 
+		// Verify this sumcheck instance EXCEPT FOR THE FINAL VERIFICATION:
+		// ================================================================
+
 		hL, hR, hPrime, lastClaimOfThisSumcheck := sc.Solve(curveID, cs, &mimc)
 
-		// get eq(q', h'), prefoldedCopy(hL, hR) and prefoldedCipher(hL, hR)
+		// Finish the sumcheck verification:
+		// =================================
+
+		// fold Eq, prefoldedCopy and prefoldedCipher; get VL and VR
 		Eq := Eq{QPrime: qPrimeCurr, HPrime: hPrime}
 		eq = Eq.Fold(cs)
 		copy = prefoldedCopy.Fold(cs, hL, hR)
 		cipher = prefoldedCipher.Fold(cs, hL, hR)
-
-		// get VL and VR
 		if round != (nLayers - 1) {
 			VL = gkr.VLClaimed[round]
 			VR = gkr.VRClaimed[round]
 		} else {
 			VL, VR = gkr.VInput.DoubleFold(cs, hL, hR, hPrime)
 		}
-
-		// compute expected value of the final claim of the current Sumcheck run
+		// compute expected value of the final claim of the current Sumcheck; compare
 		expectedClaim := Combinator(cs, eq, copy, cipher, VL, VR, gkr.RoundConstants[round])
-
-		// compare expectedClaim to the lastClaimOfThisSumcheck
 		cs.AssertIsEqual(lastClaimOfThisSumcheck, expectedClaim)
 
-		// get lambda and rho
-		lambda = cs.Constant(1)
-		rho = mimc.Hash(cs, VL, VR)
-		cs.Println("rho:", rho)
+		// Prepare the next round:
+		// =======================
 
-		// Preparing the next round:
-		// =========================
-
-		// set the next prefoldedCopy and prefoldedCipher
 		if round != (nLayers - 1) {
-			prefoldedCopy, prefoldedCipher = PrefoldedCopyAndCipherLinComb(cs, lambda, rho, hL, hR)
+			rho = mimc.Hash(cs, VL, VR)
+			// set the next prefoldedCopy and prefoldedCipher
+			prefoldedCopy, prefoldedCipher = PrefoldedCopyAndCipherLinComb(cs, rho, hL, hR)
+			// set the next initial claim to VL + rho * VR
+			initialClaimOfTheSumcheck = cs.Mul(rho, VR)
+			initialClaimOfTheSumcheck = cs.Add(VL, initialClaimOfTheSumcheck)
+			// set qPrimeCurr to HPrime
+			qPrimeCurr = hPrime
 		}
-
-		// The next initial claim is lambda * VL + rho * VR
-		aux := cs.Mul(lambda, VL)
-		initialClaimOfTheSumcheck = cs.Mul(rho, VR)
-		initialClaimOfTheSumcheck = cs.Add(initialClaimOfTheSumcheck, aux)
-
-		// redefine qPrimeCurr as the previously computed HPrime
-		qPrimeCurr = hPrime
 	}
 
 	return nil

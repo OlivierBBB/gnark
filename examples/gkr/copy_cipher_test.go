@@ -11,7 +11,7 @@ import (
 func (ccc CopyCipherCircuit) FoldCopyCipherAndEval(cs *frontend.ConstraintSystem) (fldCo, fldCi, fldCoLC, fldCiLC frontend.Variable) {
 
 	copy, cipher := PrefoldedCopyAndCipher(cs, ccc.Q)
-	copyLC, cipherLC := PrefoldedCopyAndCipherLinComb(cs, ccc.Lambda, ccc.Rho, ccc.HL, ccc.HR)
+	copyLC, cipherLC := PrefoldedCopyAndCipherLinComb(cs, ccc.Rho, ccc.HL, ccc.HR)
 
 	fldCo = copy.Fold(cs, ccc.A, ccc.B)
 	fldCi = cipher.Fold(cs, ccc.C, ccc.D)
