@@ -7,7 +7,7 @@ import (
 )
 
 const (
-	bN        = 3
+	bN        = 4
 	bG        = 1
 	nLayers   = 91
 	degHL     = 2
