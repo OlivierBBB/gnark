@@ -1,12 +1,15 @@
 package gkr
 
-var initialQPrime []string
-var arks []string
-var outputs []string
-var claimedVLs []string
-var claimedVRs []string
-var sumcheckProofs [][][]string
+var (
+	initialQPrime  []string
+	arks           []string
+	outputs        []string
+	claimedVLs     []string
+	claimedVRs     []string
+	sumcheckProofs [][][]string
+)
 
+// initialize the slices above; related to hashing [0,0,...,0] (size = 16, bN=4)
 func init() {
 	initialQPrime = []string{
 		"1",

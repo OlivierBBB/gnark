@@ -22,6 +22,7 @@ func (eq *EqCircuit) Define(curveID gurvy.ID, cs *frontend.ConstraintSystem) err
 	return nil
 }
 
+// for this test to work set bN = 1
 func TestEq(t *testing.T) {
 
 	var eq EqCircuit
